@@ -23,7 +23,9 @@
 /* USER CODE BEGIN Includes */
 
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
+#include <math.h>
 #include "mano.h"
 
 /* USER CODE END Includes */
@@ -49,7 +51,7 @@ ADC_HandleTypeDef hadc;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-char msg[20];
+char msg[200];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -65,48 +67,56 @@ static void MX_ADC_Init(void);
 /* USER CODE BEGIN 0 */
 #define Vref 3.3
 #define Vstep Vref/4096 // 12 bit ADC
-float ReadTemperature(void)
-{
-	// NTC thermistor coefficients
-	float A = 0.001210656;
-	float B = 0.000226946;
-	float C = 6.7980e-8;
-	float D = 0;  // adjust for better precision
+float ReadTemperature(uint32_t channel) {
 
+	// NTC thermistor coefficients
+		float A = 0.001210656;
+		float B = 0.000226946;
+		float C = 6.7980e-8;
+		float D = 0;  // adjust for better precision
 
 	float resistance;  // NTC thermistor's resistance
-	float temperature;
-	uint32_t ADCpa0;
-	float Vpa0;
-	static unsigned char bADCReady=1;
+	    float temperature;
+	    uint32_t ADCValue;
+	    float voltage;
+	    static unsigned char bADCReady = 1;
 
-	if (bADCReady==1) {
-	// starting ADC
-		if (HAL_ADC_Start(&hadc) != HAL_OK) {
-			// Start Conversation Error
-			Error_Handler();
-		}
-		else bADCReady=0; // ADC conversion in progress, you cannot start another ADC conversion
+	    // Check if ADC is ready for a new conversion
+	    if (bADCReady == 1) {
+	        // Start ADC conversion
+	        if (HAL_ADC_Start(&hadc) != HAL_OK) {
+	            // Start Conversion Error
+	            Error_Handler();
+	        } else {
+	            bADCReady = 0; // ADC conversion in progress
+	        }
+	    }
+
+	    // Poll for ADC conversion completion
+	    HAL_ADC_PollForConversion(&hadc, 10);
+
+	    // Check if the conversion is complete
+	    if ((HAL_ADC_GetState(&hadc) & HAL_ADC_STATE_REG_EOC) == HAL_ADC_STATE_REG_EOC) {
+	        // Select the channel to read
+	        ADC_ChannelConfTypeDef sConfig;
+	        sConfig.Channel = channel; // Set the channel
+	        sConfig.Rank = 1;          // Rank of the channel in the sequencer
+	        hadc.Init.SamplingTime = ADC_SAMPLETIME_1CYCLE_5; // Set sampling time
+	        HAL_ADC_ConfigChannel(&hadc, &sConfig); // Configure the ADC channel
+
+	        // Get the converted value
+	        ADCValue = HAL_ADC_GetValue(&hadc); // Read ADC result
+	        voltage = ADCValue * Vstep; // Calculate voltage
+
+	        // Calculate resistance and temperature
+	        resistance = 5714.3 * voltage;
+	        temperature = 1 / (A + B * log(resistance) + C * pow(log(resistance), 2) + D * pow(log(resistance), 3)) - 273.15;
+
+	        bADCReady = 1; // ADC conversion complete, ready for next conversion
+	    }
+
+	    return temperature;
 	}
-
-	HAL_ADC_PollForConversion(&hadc, 10);
-
-	// Check if the continous conversion of regular channel is finished
-	if ((HAL_ADC_GetState(&hadc) & HAL_ADC_STATE_REG_EOC) == HAL_ADC_STATE_REG_EOC) {
-
-		//##-6- Get the converted value of regular channel ########################
-		ADCpa0 = HAL_ADC_GetValue(&hadc);// Read ADC result
-		Vpa0=ADCpa0*Vstep; // calculate voltage
-
-		resistance = 5714.3 * Vpa0;
-		temperature = 1 / (A + B * log(resistance) + C * pow(log(resistance), 2) + D * pow(log(resistance), 3)) - 273.15;
-
-		bADCReady=1; // you can start another ADC conversion
-	}
-
-	return temperature;
-
-}
 
 /* USER CODE END 0 */
 
@@ -116,7 +126,7 @@ float ReadTemperature(void)
   */
 int main(void)
 {
-
+	//float difference = ReadTemperature(ADC_CHANNEL_0) - ReadTemperature(ADC_CHANNEL_1);
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -152,8 +162,14 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  sprintf(msg, "Temperature: %f \r\n", ReadTemperature());
+	  sprintf(msg, "T1: %f T2: %f diff: %f \r", ReadTemperature(ADC_CHANNEL_0), ReadTemperature(ADC_CHANNEL_1), (ReadTemperature(ADC_CHANNEL_0) - ReadTemperature(ADC_CHANNEL_1)));
 	  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+
+	  //sprintf(msg, "T2: %f \r ", ReadTemperature(ADC_CHANNEL_1));
+	  //HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+
+	  //sprintf(msg, "Diff: %f \r\n", (ReadTemperature(ADC_CHANNEL_0) - ReadTemperature(ADC_CHANNEL_1)));
+	  //HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 	  example();
   }
 
