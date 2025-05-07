@@ -28,6 +28,9 @@
 #include <math.h>
 #include "mano.h"
 
+#include "st7735.h"
+#include "fonts.h"
+#include "testimg.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,10 +51,14 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc;
 
+SPI_HandleTypeDef hspi2;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 char msg[200];
+int counter;
+float T1 = 0.0, T2 = 10.1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -59,12 +66,19 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC_Init(void);
+static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+float test_function(uint32_t channel) {
+
+	return 1.564654;
+}
+
+
 #define Vref 3.3
 #define Vstep Vref/4096 // 12 bit ADC
 float ReadTemperature(uint32_t channel) {
@@ -75,7 +89,7 @@ float ReadTemperature(uint32_t channel) {
 		float C = 6.7980e-8;
 		float D = 0;  // adjust for better precision
 
-	float resistance;  // NTC thermistor's resistance
+		float resistance;  // NTC thermistor's resistance
 	    float temperature;
 	    uint32_t ADCValue;
 	    float voltage;
@@ -126,7 +140,7 @@ float ReadTemperature(uint32_t channel) {
   */
 int main(void)
 {
-	//float difference = ReadTemperature(ADC_CHANNEL_0) - ReadTemperature(ADC_CHANNEL_1);
+
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -151,8 +165,10 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_ADC_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-
+  ST7735_Init();
+  ST7735_FillScreen(ST7735_GREEN);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -162,7 +178,12 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  sprintf(msg, "T1: %f T2: %f diff: %f \r", ReadTemperature(ADC_CHANNEL_0), ReadTemperature(ADC_CHANNEL_1), (ReadTemperature(ADC_CHANNEL_0) - ReadTemperature(ADC_CHANNEL_1)));
+
+
+
+	  if (counter % 2000 == 0) {
+
+	  sprintf(msg, "T1: %f T2: %f diff: %f \r", ReadTemperature(ADC_CHANNEL_0),  ReadTemperature(ADC_CHANNEL_1), (ReadTemperature(ADC_CHANNEL_0) - ReadTemperature(ADC_CHANNEL_1)));
 	  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 
 	  //sprintf(msg, "T2: %f \r ", ReadTemperature(ADC_CHANNEL_1));
@@ -170,7 +191,15 @@ int main(void)
 
 	  //sprintf(msg, "Diff: %f \r\n", (ReadTemperature(ADC_CHANNEL_0) - ReadTemperature(ADC_CHANNEL_1)));
 	  //HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-	  example();
+	  }
+
+	  if (counter % 5000 == 0) {
+
+		  // update display
+
+		  sprintf(msg, "5000T1: %f T2: %f diff: %f \r", ReadTemperature(ADC_CHANNEL_0),  ReadTemperature(ADC_CHANNEL_1), (ReadTemperature(ADC_CHANNEL_0) - ReadTemperature(ADC_CHANNEL_1)));
+		  	  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+	  }
   }
 
   /* USER CODE END 3 */
@@ -289,6 +318,44 @@ static void MX_ADC_Init(void)
 }
 
 /**
+  * @brief SPI2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI2_Init(void)
+{
+
+  /* USER CODE BEGIN SPI2_Init 0 */
+
+  /* USER CODE END SPI2_Init 0 */
+
+  /* USER CODE BEGIN SPI2_Init 1 */
+
+  /* USER CODE END SPI2_Init 1 */
+  /* SPI2 parameter configuration*/
+  hspi2.Instance = SPI2;
+  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Direction = SPI_DIRECTION_1LINE;
+  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi2.Init.NSS = SPI_NSS_SOFT;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi2.Init.CRCPolynomial = 7;
+  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI2_Init 2 */
+
+  /* USER CODE END SPI2_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -339,9 +406,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LD2_Pin|GPIO_PIN_8, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -349,12 +423,26 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : LD2_Pin PA8 */
+  GPIO_InitStruct.Pin = LD2_Pin|GPIO_PIN_8;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PC7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

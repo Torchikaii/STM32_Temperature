@@ -22,6 +22,10 @@
 #include "stm32l0xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <math.h>
+
+#include "mano.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -129,6 +133,22 @@ void SysTick_Handler(void)
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
+
+
+  counter++;
+  if (counter == 10000) {
+
+	  counter = 0;  // reset counter every 10 seconds
+  }
+
+  if (counter % 1000 == 0) {
+
+	  //T1 = ReadTemperature(ADC_CHANNEL_0);
+  	  //if (counter % 50 == 0)
+	  //T2 = ReadTemperature(ADC_CHANNEL_1);
+  }
+
+
 
   /* USER CODE END SysTick_IRQn 1 */
 }
