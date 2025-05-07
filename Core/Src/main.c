@@ -59,6 +59,11 @@ UART_HandleTypeDef huart2;
 char msg[200];
 int counter;
 float T1 = 0.0, T2 = 10.1;
+
+char T1_buff[100];  // Buffer to hold the string representation
+char T2_buff[100];
+char diff_buff[100];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -73,10 +78,6 @@ static void MX_SPI2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-float test_function(uint32_t channel) {
-
-	return 1.564654;
-}
 
 
 #define Vref 3.3
@@ -186,19 +187,21 @@ int main(void)
 	  sprintf(msg, "T1: %f T2: %f diff: %f \r", ReadTemperature(ADC_CHANNEL_0),  ReadTemperature(ADC_CHANNEL_1), (ReadTemperature(ADC_CHANNEL_0) - ReadTemperature(ADC_CHANNEL_1)));
 	  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 
-	  //sprintf(msg, "T2: %f \r ", ReadTemperature(ADC_CHANNEL_1));
-	  //HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-
-	  //sprintf(msg, "Diff: %f \r\n", (ReadTemperature(ADC_CHANNEL_0) - ReadTemperature(ADC_CHANNEL_1)));
-	  //HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 	  }
 
 	  if (counter % 5000 == 0) {
 
-		  // update display
+		  // Convert float to string
+		  sprintf(T1_buff, "T1: %.5f", ReadTemperature(ADC_CHANNEL_0)); // Format to 5 decimal places
+		  sprintf(T2_buff, "T2: %.5f", ReadTemperature(ADC_CHANNEL_1)); // Format to 5 decimal places
+		  sprintf(diff_buff, "diff: %.5f", ReadTemperature(ADC_CHANNEL_0) - ReadTemperature(ADC_CHANNEL_0)); // Format to 5 decimal places
 
-		  sprintf(msg, "5000T1: %f T2: %f diff: %f \r", ReadTemperature(ADC_CHANNEL_0),  ReadTemperature(ADC_CHANNEL_1), (ReadTemperature(ADC_CHANNEL_0) - ReadTemperature(ADC_CHANNEL_1)));
-		  	  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+
+		  ST7735_WriteString(10,  20, T1_buff, Font_7x10, ST7735_WHITE, ST7735_GREEN);
+
+		  ST7735_WriteString(10,  40, T2_buff, Font_7x10, ST7735_WHITE, ST7735_GREEN);
+
+		  ST7735_WriteString(10,  60, diff_buff, Font_7x10, ST7735_WHITE, ST7735_GREEN);
 	  }
   }
 
